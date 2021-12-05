@@ -83,8 +83,18 @@ plot.check <- goa.sst %>%
 ggplot(plot.check, aes(year, value, color = name)) +
   geom_line()
 
-# and annual anomalies wrt 1900-1999
 
-mean.20.century <- mean(ann.sst[names(ann.sst) %in% 1900:1999])
-sd.20.century <- sd(ann.sst[names(ann.sst) %in% 1900:1999])
-ann.anom <- (ann.sst-mean.20.century) / sd.20.century
+# save
+write.csv(goa.sst, "./data/goa.sst.csv")
+
+# and annual anomalies wrt 1900-1999
+goa.sst.anom <- goa.sst 
+
+for(j in 2:4){
+mean.20.century <- mean(goa.sst[goa.sst$year %in% 1900:1999,j], na.rm = T)
+sd.20.century <- sd(goa.sst[goa.sst$year %in% 1900:1999,j], na.rm = T)
+goa.sst.anom[,j] <- (goa.sst.anom[,j] - mean.20.century) / sd.20.century
+}
+
+# save
+write.csv(goa.sst.anom, "./data/goa.sst.anom.csv")
