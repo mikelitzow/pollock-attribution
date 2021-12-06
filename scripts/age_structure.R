@@ -43,13 +43,6 @@ ggplot(plot, aes(name, value)) +
 
 
 ## use Shannon-Weiner to calculate age diversity
-# developing / pre-spawning / spawning / spent fish
-age.diversity <- dat %>%
-  filter(maturity_table_3 %in% 2:5,
-         Age > 1) %>%
-  group_by(year, Age) %>%
-  summarize(count = n()) 
-
 
 # drop estimates of 0
 plot.trimmed <- plot %>%
