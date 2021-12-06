@@ -182,74 +182,55 @@ ggplot(dat_ce) +
     geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
     geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
     geom_line(size = 1, color = "red3") +
-    labs(x = "Three-year running mean SST (anomaly)", y = "Age diversity") +
+    labs(x = "Three-year running mean SST (°C)", y = "Age diversity") +
     theme_bw()+
     geom_rug(aes(x=rug.anom, y=NULL))
 
+## evaluate with the assessment report version of the data ------------------
+alt.dat <- read.csv("./data/assessment_report_age_diversity.csv",
+                    row.names = 1)
 
-ggsave("./figs/temp.anom_predicted_effect_cod2sg_zinb_k3.png", width = 3, height = 2)
-## this is Fig. 2a in the draft
+# add sst data
+sst <- read.csv("./data/goa.sst.csv",
+                row.names = 1)
 
+alt.data <- left_join(alt.dat, sst)
 
-## Julian predictions ##
+# drop missing years 
+alt.data <- na.omit(alt.data)
 
-## 95% CI
-ce1s_1 <- conditional_effects(cod2sg_zinb_k3, effect = "julian", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(cod2sg_zinb_k3, effect = "julian", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(cod2sg_zinb_k3, effect = "julian", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$julian
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$julian[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$julian[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$julian[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$julian[["lower__"]]
+# fit an alternate version of model 3
+alt_age_sst3 <- brm(age3_formula,
+                data = alt.data,
+                prior = age_priors,
+                seed = 1234,
+                cores = 4, chains = 4, iter = 3000,
+                save_pars = save_pars(all = TRUE),
+                control = list(adapt_delta = 0.9999, max_treedepth = 10))
+saveRDS(alt_age_sst3, file = "./output/alt_age_sst3.rds")
 
-g <- ggplot(dat_ce) +
-    aes(x = effect1__, y = estimate__) +
-    geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
-    geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
-    geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
-    geom_line(size = 1.5, color = "red3") +
-    coord_trans(y = "pseudo_log") +
-    labs(x = "Day of year", y = "Cod abundance") +
-    theme_bw()
-print(g)
-ggsave("./figs/julian_predicted_effect_cod2sg_zinb_k3.png", width = 5, height = 4)
+# alt_age_sst3 <- add_criterion(alt_age_sst3, "loo",
+#                           moment_match = TRUE)
 
+saveRDS(alt_age_sst3, file = "./output/alt_age_sst3.rds")
 
-## SSB predictions ##
+alt_age_sst3 <- readRDS("./output/alt_age_sst3.rds")
+check_hmc_diagnostics(alt_age_sst3$fit)
+neff_lowest(alt_age_sst3$fit)
+rhat_highest(alt_age_sst3$fit)
+summary(alt_age_sst3)
+bayes_R2(alt_age_sst3)
+# plot(alt_age_sst3$criteria$loo, "k")
+plot(conditional_smooths(alt_age_sst3), ask = FALSE)
+y <- data$shannon
+yrep_alt_age_sst3  <- fitted(alt_age_sst3, scale = "response", summary = FALSE)
+ppc_dens_overlay(y = y, yrep = yrep_alt_age_sst3[sample(nrow(yrep_alt_age_sst3), 25), ]) +
+  xlim(0, 3) +
+  ggtitle("alt_age_sst3")
+pdf("./figs/trace_alt_age_sst3.pdf", width = 6, height = 4)
+trace_plot(alt_age_sst3$fit)
+dev.off()
 
-## 95% CI
-ce1s_1 <- conditional_effects(cod2sg_zinb_k3, effect = "ssb", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(cod2sg_zinb_k3, effect = "ssb", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(cod2sg_zinb_k3, effect = "ssb", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$ssb
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$ssb[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$ssb[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$ssb[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$ssb[["lower__"]]
-
-g <- ggplot(dat_ce) +
-    aes(x = effect1__, y = estimate__) +
-    geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
-    geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
-    geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
-    geom_line(size = 1.5, color = "red3") +
-    labs(x = "SSB", y = "Cod abundance") +
-    coord_trans(y = "pseudo_log") +
-    theme_bw()
-print(g)
-ggsave("./figs/SSB_predicted_effect_cod2sg3_zinb_k3.png", width = 5, height = 4)
+## appears to support similar conclusions to the version derived from 
+## our own processing of the data, though sst explains less variability in
+## this version of the data
